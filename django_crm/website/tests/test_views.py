@@ -1,24 +1,17 @@
 from django.test import TestCase, Client
+from parameterized import parameterized
 from django.urls import reverse
 from django.contrib.auth.models import User
 
 from ..froms import SignUpForm
-
-user_data = {
-    "username": "johnny",
-    "first_name": "John",
-    "last_name": "Wick",
-    "email": "jowick@test.com",
-    "password1": "superduper23",
-    "password2": "superduper23"
-}
+from .test_utils import load_data, csv_to_list_of_tuples
 
 
 class RegistrationTestCase(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.user_data = user_data
+        self.user_data = load_data("user.json")
 
     def test_home_view(self):
         response = self.client.get(reverse("home"))
@@ -42,7 +35,7 @@ class AuthTestCase(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.user_data = user_data
+        self.user_data = load_data("user.json")
         form = SignUpForm(self.user_data)
         form.save()
 
@@ -50,4 +43,11 @@ class AuthTestCase(TestCase):
         response = self.client.post(reverse("home"),
                                     data={"username": self.user_data["username"],
                                           "password": self.user_data["password1"]})
+        print(response)
         self.assertEqual(response.status_code, 302)
+
+    @parameterized.expand(csv_to_list_of_tuples("invalid_login.csv"))
+    def test_invalid_user_login(self, username, password):
+        response = self.client.post(reverse("home"), follow=True, data={"username": username,
+                                                           "password": password})
+        self.assertFalse(response.context["user"].is_active)
